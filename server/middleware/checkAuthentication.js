@@ -4,5 +4,6 @@ const checkAuthentication = (req, res, next) => {
   }
   next();
 };
-
+ 
 module.exports = checkAuthentication;
+

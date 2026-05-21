@@ -4,8 +4,8 @@ const pool = require('./pool');
 const SALT_ROUNDS = 8;
 
 const seed = async () => {
-  // Drop tables in reverse dependency order (todos references users via FK)
-  await pool.query('DROP TABLE IF EXISTS todos');
+  await pool.query('DROP TABLE IF EXISTS attendance_records');
+  await pool.query('DROP TABLE IF EXISTS classes');
   await pool.query('DROP TABLE IF EXISTS users');
 
   await pool.query(`
@@ -17,21 +17,30 @@ const seed = async () => {
   `);
 
   await pool.query(`
-    CREATE TABLE todos (
-      todo_id     SERIAL PRIMARY KEY,
-      title       TEXT NOT NULL,
-      is_complete BOOLEAN NOT NULL DEFAULT FALSE,
+    CREATE TABLE classes (
+      class_id    SERIAL PRIMARY KEY,
+      name        TEXT NOT NULL,
+      instructor  TEXT NOT NULL,
       user_id     INT REFERENCES users(user_id) ON DELETE CASCADE
     )
   `);
 
-  // Hash passwords in parallel — bcrypt is slow by design (CPU-bound hashing)
+  await pool.query(`
+    CREATE TABLE attendance_records (
+      record_id   SERIAL PRIMARY KEY,
+      class_id    INT REFERENCES classes(class_id) ON DELETE CASCADE,
+      date        DATE NOT NULL,
+      status      TEXT NOT NULL CHECK (status IN ('present', 'absent', 'late', 'excused')),
+      notes       TEXT,
+      user_id     INT REFERENCES users(user_id) ON DELETE CASCADE
+    )
+  `);
+
   const [aliceHash, bobHash] = await Promise.all([
     bcrypt.hash('password123', SALT_ROUNDS),
     bcrypt.hash('password123', SALT_ROUNDS),
   ]);
 
-  // RETURNING captures inserted user_ids so we don't hardcode them
   const { rows: users } = await pool.query(`
     INSERT INTO users (username, password_hash) VALUES
       ('alice', $1),
@@ -41,15 +50,39 @@ const seed = async () => {
 
   const [alice, bob] = users;
 
+  const { rows: aliceClasses } = await pool.query(`
+    INSERT INTO classes (name, instructor, user_id) VALUES
+      ('Intro to Computer Science', 'Prof. Williams', $1),
+      ('Calculus II',               'Prof. Chen',     $1),
+      ('English Composition',       'Prof. Rivera',   $1)
+    RETURNING class_id
+  `, [alice.user_id]);
+
+  const { rows: bobClasses } = await pool.query(`
+    INSERT INTO classes (name, instructor, user_id) VALUES
+      ('Data Structures', 'Prof. Patel', $1),
+      ('Linear Algebra',  'Prof. Kim',   $1)
+    RETURNING class_id
+  `, [bob.user_id]);
+
   await pool.query(`
-    INSERT INTO todos (title, is_complete, user_id) VALUES
-      ('Buy groceries',        FALSE, $1),
-      ('Walk the dog',         FALSE, $1),
-      ('Read a book',          TRUE,  $1),
-      ('Set up the database',  TRUE,  $2),
-      ('Build the API',        TRUE,  $2),
-      ('Build the frontend',   FALSE, $2)
-  `, [alice.user_id, bob.user_id]);
+    INSERT INTO attendance_records (class_id, date, status, notes, user_id) VALUES
+      ($1, '2025-01-13', 'present', NULL,                      $4),
+      ($1, '2025-01-15', 'present', NULL,                      $4),
+      ($1, '2025-01-20', 'late',    'Bus was delayed',         $4),
+      ($2, '2025-01-14', 'present', NULL,                      $4),
+      ($2, '2025-01-21', 'absent',  'Doctor appointment',      $4),
+      ($3, '2025-01-13', 'present', NULL,                      $4),
+      ($3, '2025-01-15', 'excused', 'College event',           $4)
+  `, [aliceClasses[0].class_id, aliceClasses[1].class_id, aliceClasses[2].class_id, alice.user_id]);
+
+  await pool.query(`
+    INSERT INTO attendance_records (class_id, date, status, notes, user_id) VALUES
+      ($1, '2025-01-13', 'present', NULL,                      $3),
+      ($1, '2025-01-15', 'absent',  'Sick',                    $3),
+      ($2, '2025-01-14', 'present', NULL,                      $3),
+      ($2, '2025-01-16', 'late',    'Traffic',                 $3)
+  `, [bobClasses[0].class_id, bobClasses[1].class_id, bob.user_id]);
 
   return users;
 };

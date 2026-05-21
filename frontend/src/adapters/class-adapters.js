@@ -9,26 +9,26 @@ const handleFetch = async (url, options = {}) => {
   }
 };
 
-export const fetchAllTodos = async () => {
-  return handleFetch('/api/todos');
+export const fetchAllClasses = async () => {
+  return handleFetch('/api/classes');
 };
 
-export const createTodo = async (title) => {
-  return handleFetch('/api/todos', {
+export const createClass = async (name, instructor) => {
+  return handleFetch('/api/classes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ name, instructor }),
   });
 };
 
-export const updateTodo = async (todo_id, updates) => {
-  return handleFetch(`/api/todos/${todo_id}`, {
+export const updateClass = async (class_id, updates) => {
+  return handleFetch(`/api/classes/${class_id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
 };
 
-export const deleteTodo = async (todo_id) => {
-  return handleFetch(`/api/todos/${todo_id}`, { method: 'DELETE' });
+export const deleteClass = async (class_id) => {
+  return handleFetch(`/api/classes/${class_id}`, { method: 'DELETE' });
 };

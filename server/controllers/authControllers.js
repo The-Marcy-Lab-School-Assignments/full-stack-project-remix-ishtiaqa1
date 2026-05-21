@@ -32,9 +32,6 @@ module.exports.login = async (req, res, next) => {
   }
 };
 
-// Returns the logged-in user object, or null if no session exists.
-// Returning JSON null (200) keeps the response format consistent — the frontend
-// can always call response.json() without hitting a parse error.
 module.exports.getMe = async (req, res, next) => {
   try {
     if (!req.session.user_id) return res.json(null);

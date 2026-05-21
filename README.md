@@ -1,52 +1,47 @@
-# Attendance Tracker — Full-Stack
+# AttendanceIQ 📋
 
-A full-stack Attendance Tracker built with React, Express, and Postgres. Demonstrates session-based authentication, session rehydration, auth-dependent data fetching, and conditional rendering — the same patterns students use in their full-stack projects.
+> Track your class attendance. Own your academic record.
 
----
-
-## User Stories
-
-### Auth
-
-- A user can register for an account with a username and password
-- A user can log in to an existing account
-- A user can log out
-- A returning user who has an active session is automatically logged in when they revisit the app
-
-### Attendance
-
-- A logged-in user can see all students in their class
-- A logged-in user can create a new student record by entering a name
-- A logged-in user can mark a student as present or absent for today
-- A logged-in user can view attendance history for any student
-- A logged-in user can delete a student record
+AttendanceIQ is a full-stack PERN application that lets students track their own attendance across multiple classes. Users can log whether they were present, late, excused, or absent for each class session, and see at-a-glance attendance percentages to stay on top of their academic standing.
 
 ---
 
-## Schema
+## MVP User Stories
+
+- A user can **register** a new account with a username and password
+- A user can **log in** and **log out** of their account
+- A user can **add classes** (with a name and instructor)
+- A user can **delete a class** (which also removes all its attendance records)
+- A user can **log an attendance record** for a class on a specific date with a status: `present`, `late`, `excused`, or `absent`
+- A user can **view all their attendance records**, filtered by class
+- A user can **delete an attendance record**
+- A user can **see attendance statistics** (attendance %) per class
+- A user's session **persists across page refreshes** via cookie rehydration
+
+---
+
+## Schema Diagram
 
 ```
 users
-─────────────────────────────
-user_id       SERIAL PRIMARY KEY
-username      TEXT UNIQUE NOT NULL
-password_hash TEXT NOT NULL
+├── user_id     SERIAL PRIMARY KEY
+├── username    TEXT UNIQUE NOT NULL
+└── password_hash TEXT NOT NULL
 
-students
-─────────────────────────────
-student_id    SERIAL PRIMARY KEY
-name          TEXT NOT NULL
-user_id       INTEGER REFERENCES users(user_id) ON DELETE CASCADE
+classes
+├── class_id    SERIAL PRIMARY KEY
+├── name        TEXT NOT NULL
+├── instructor  TEXT NOT NULL
+└── user_id     INT → users(user_id) ON DELETE CASCADE
 
 attendance_records
-─────────────────────────────
-record_id     SERIAL PRIMARY KEY
-date          DATE NOT NULL DEFAULT CURRENT_DATE
-is_present    BOOLEAN DEFAULT FALSE
-student_id    INTEGER REFERENCES students(student_id) ON DELETE CASCADE
+├── record_id   SERIAL PRIMARY KEY
+├── class_id    INT → classes(class_id) ON DELETE CASCADE
+├── date        DATE NOT NULL
+├── status      TEXT NOT NULL  CHECK IN ('present','absent','late','excused')
+├── notes       TEXT
+└── user_id     INT → users(user_id) ON DELETE CASCADE
 ```
-
-A user has many students. A student has many attendance records. Deleting a user cascades to delete all of their students, and deleting a student cascades to delete all of their attendance records.
 
 ---
 
@@ -54,121 +49,103 @@ A user has many students. A student has many attendance records. Deleting a user
 
 ### Auth Endpoints
 
-| Method | Endpoint | Request Body | Response |
-|--------|----------|--------------|----------|
-| POST | `/api/auth/register` | `{ username, password }` | `{ user_id, username }` |
-| POST | `/api/auth/login` | `{ username, password }` | `{ user_id, username }` |
-| DELETE | `/api/auth/logout` | — | `{ message }` |
-| GET | `/api/auth/me` | — | `{ user_id, username }` or `null` |
+| Method | Route | Description | Request Body | Response |
+|--------|-------|-------------|-------------|----------|
+| `POST` | `/api/auth/register` | Register a new user | `{ username, password }` | `201` `{ user_id, username }` |
+| `POST` | `/api/auth/login` | Log in | `{ username, password }` | `200` `{ user_id, username }` |
+| `GET`  | `/api/auth/me` | Get current session user | — | `200` `{ user_id, username }` or `null` |
+| `DELETE` | `/api/auth/logout` | Log out | — | `200` `{ message }` |
 
-### Student Endpoints _(all require authentication)_
+### Class Endpoints (all require authentication)
 
-| Method | Endpoint | Request Body | Response |
-|--------|----------|--------------|----------|
-| GET | `/api/students` | — | `[{ student_id, name, user_id }]` |
-| POST | `/api/students` | `{ name }` | `{ student_id, name, user_id }` |
-| DELETE | `/api/students/:student_id` | — | `{ student_id, name, user_id }` |
+| Method | Route | Description | Request Body | Response |
+|--------|-------|-------------|-------------|----------|
+| `GET`    | `/api/classes` | List all classes for current user | — | `200` `[{ class_id, name, instructor, user_id }]` |
+| `POST`   | `/api/classes` | Create a class | `{ name, instructor }` | `201` `{ class_id, name, instructor, user_id }` |
+| `PATCH`  | `/api/classes/:class_id` | Update a class | `{ name, instructor }` | `200` updated class |
+| `DELETE` | `/api/classes/:class_id` | Delete a class (cascades) | — | `200` deleted class |
 
-### Attendance Endpoints _(all require authentication)_
+### Attendance Record Endpoints (all require authentication)
 
-| Method | Endpoint | Request Body | Response |
-|--------|----------|--------------|----------|
-| GET | `/api/attendance/:student_id` | — | `[{ record_id, date, is_present, student_id }]` |
-| POST | `/api/attendance` | `{ student_id, date }` | `{ record_id, date, is_present, student_id }` |
-| PATCH | `/api/attendance/:record_id` | `{ is_present }` | `{ record_id, date, is_present, student_id }` |
-| DELETE | `/api/attendance/:record_id` | — | `{ record_id, date, is_present, student_id }` |
+| Method | Route | Description | Request Body | Response |
+|--------|-------|-------------|-------------|----------|
+| `GET`    | `/api/attendance` | List all records (optionally `?class_id=N`) | — | `200` `[{ record_id, class_name, date, status, notes, ... }]` |
+| `GET`    | `/api/attendance/stats` | Attendance summary per class | — | `200` `[{ class_id, class_name, present_count, absent_count, ... }]` |
+| `POST`   | `/api/attendance` | Log a new record | `{ class_id, date, status, notes? }` | `201` `{ record_id, ... }` |
+| `PATCH`  | `/api/attendance/:record_id` | Update status/notes | `{ status?, notes? }` | `200` updated record |
+| `DELETE` | `/api/attendance/:record_id` | Delete a record | — | `200` deleted record |
 
 ---
 
-## Setup
+## Setup Instructions
 
-### 1. Database
+### Prerequisites
 
-Create a local Postgres database:
+- Node.js v18+
+- PostgreSQL
+
+### 1. Clone the repo
 
 ```bash
-createdb attendance_casestudy
+git clone https://github.com/your-username/attendance-tracker.git
+cd attendance-tracker
 ```
 
-### 2. Server
+### 2. Set up the server
 
 ```bash
 cd server
 npm install
 cp .env.template .env
+# Fill in your Postgres credentials and a SESSION_SECRET in .env
 ```
 
-Open `.env` and fill in your Postgres credentials and a session secret. Then seed the database:
+### 3. Seed the database
 
 ```bash
 npm run db:seed
 ```
 
-Start the server:
+This drops and recreates the tables, then inserts two seed users (`alice` / `bob`, both with password `password123`) and sample classes and records.
+
+### 4. Start the server
 
 ```bash
-npm run dev
+npm run dev   # uses nodemon for hot-reload
 ```
 
-The server runs on `http://localhost:8080`.
+Server runs on `http://localhost:8080`.
 
-### 3. Frontend
-
-In a second terminal:
+### 5. Set up the frontend
 
 ```bash
-cd frontend
+cd ../frontend
 npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:5173`. The Vite dev proxy forwards all `/api` requests to the Express server so session cookies work correctly.
+Frontend runs on `http://localhost:5173`. The Vite proxy forwards all `/api` requests to the Express server so cookies work correctly.
 
 ---
 
-## Seed Users
+## Tech Stack
 
-After running `npm run db:seed`, these accounts are available:
-
-| Username | Password |
-|----------|----------|
-| teacher1 | password123 |
-| teacher2 | password123 |
+| Layer | Technology |
+|-------|-----------|
+| Database | PostgreSQL |
+| Server | Node.js + Express |
+| Auth | cookie-session + bcrypt |
+| Frontend | Vite + React |
+| Styling | Custom CSS (dark theme) |
 
 ---
 
-## Application Structure
+## Roadmap (Stretch Features)
 
-```
-swe-casestudy-attendance-tracker/
-├── frontend/                   # React app (Vite)
-│   ├── src/
-│   │   ├── App.jsx             # Root component: currentUser state, session rehydration, auth handlers
-│   │   ├── adapters/
-│   │   │   ├── auth-adapters.js        # Fetch adapters for /api/auth/* endpoints
-│   │   │   ├── student-adapters.js     # Fetch adapters for /api/students/* endpoints
-│   │   │   └── attendance-adapters.js  # Fetch adapters for /api/attendance/* endpoints
-│   │   └── components/
-│   │       ├── AuthPage.jsx            # Login + Register forms (shown when logged out)
-│   │       ├── AttendancePage.jsx      # Main app container (shown when logged in)
-│   │       ├── AddStudentForm.jsx      # Form to add a new student
-│   │       ├── StudentList.jsx         # Renders a list of StudentItems
-│   │       └── StudentItem.jsx         # Single student: name, present/absent toggle, delete button
-│   └── vite.config.js          # Proxies /api requests to Express in development
-└── server/                     # Express + Postgres API
-    ├── index.js                 # App entry point, route definitions
-    ├── controllers/
-    │   ├── authControllers.js        # register, login, logout, getMe
-    │   ├── studentControllers.js     # list, create, delete students
-    │   └── attendanceControllers.js  # list, create, update, delete attendance records
-    ├── models/
-    │   ├── userModel.js          # SQL queries for the users table
-    │   ├── studentModel.js       # SQL queries for the students table
-    │   └── attendanceModel.js    # SQL queries for the attendance_records table
-    ├── middleware/
-    │   ├── checkAuthentication.js    # Blocks unauthenticated requests
-    │   └── logRoutes.js              # Logs each incoming request
-    └── db/
-        ├── pool.js               # Postgres connection pool
-        └── seed.js               # Creates tables and inserts sample data
-```
+- [ ] **PATCH records inline** — edit status/notes directly from the list
+- [ ] **React Router** — separate page per class with a detail view
+- [ ] **Export to CSV** — download attendance history for a class
+- [ ] **Warning threshold** — alert when attendance % drops below 75%
+- [ ] **Global Context** — move `currentUser` into React Context instead of prop-drilling
+- [ ] **Calendar view** — visualize attendance on a monthly calendar grid
+- [ ] **Recurring sessions** — bulk-log attendance for a whole semester schedule

@@ -6,7 +6,8 @@ require('dotenv').config();
 const logRoutes = require('./middleware/logRoutes');
 const checkAuthentication = require('./middleware/checkAuthentication');
 const authControllers = require('./controllers/authControllers');
-const todoControllers = require('./controllers/todoControllers');
+const classControllers = require('./controllers/classControllers');
+const attendanceControllers = require('./controllers/attendanceControllers');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -19,9 +20,7 @@ app.use(logRoutes);
 app.use(cookieSession({ name: 'session', secret: process.env.SESSION_SECRET }));
 app.use(express.json());
 
-// In production, serve the built React app from frontend/dist.
-// In development, Vite's dev server handles the frontend on a separate port
-// and proxies /api requests to this server.
+// Serve built React frontend in production
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // ====================================
@@ -34,13 +33,23 @@ app.get('/api/auth/me', authControllers.getMe);
 app.delete('/api/auth/logout', authControllers.logout);
 
 // ====================================
-// Todo routes (all require authentication)
+// Class routes (all require authentication)
 // ====================================
 
-app.get('/api/todos', checkAuthentication, todoControllers.listTodos);
-app.post('/api/todos', checkAuthentication, todoControllers.createTodo);
-app.patch('/api/todos/:todo_id', checkAuthentication, todoControllers.updateTodo);
-app.delete('/api/todos/:todo_id', checkAuthentication, todoControllers.deleteTodo);
+app.get('/api/classes', checkAuthentication, classControllers.listClasses);
+app.post('/api/classes', checkAuthentication, classControllers.createClass);
+app.patch('/api/classes/:class_id', checkAuthentication, classControllers.updateClass);
+app.delete('/api/classes/:class_id', checkAuthentication, classControllers.deleteClass);
+
+// ====================================
+// Attendance record routes (all require authentication)
+// ====================================
+
+app.get('/api/attendance', checkAuthentication, attendanceControllers.listRecords);
+app.get('/api/attendance/stats', checkAuthentication, attendanceControllers.getStats);
+app.post('/api/attendance', checkAuthentication, attendanceControllers.createRecord);
+app.patch('/api/attendance/:record_id', checkAuthentication, attendanceControllers.updateRecord);
+app.delete('/api/attendance/:record_id', checkAuthentication, attendanceControllers.deleteRecord);
 
 // ====================================
 // Global Error Handler

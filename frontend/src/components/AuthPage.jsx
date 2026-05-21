@@ -8,14 +8,13 @@ function LoginForm({ handleLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const error = await handleLogin(username, password);
-    if (error) {
-      setErrorMessage('Invalid username or password.');
-    }
+    if (error) setErrorMessage('Invalid username or password.');
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Log In</h2>
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <h2>Sign In</h2>
+      <p className="auth-subtitle">Welcome back</p>
       <input
         type="text"
         placeholder="Username"
@@ -31,7 +30,7 @@ function LoginForm({ handleLogin }) {
         required
       />
       {errorMessage && <p className="error">{errorMessage}</p>}
-      <button type="submit">Log In</button>
+      <button type="submit" className="btn-primary">Sign In</button>
     </form>
   );
 }
@@ -44,14 +43,13 @@ function RegisterForm({ handleRegister }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const error = await handleRegister(username, password);
-    if (error) {
-      setErrorMessage('Could not register. Username may already be taken.');
-    }
+    if (error) setErrorMessage('Could not register. Username may already be taken.');
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Register</h2>
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <h2>Create Account</h2>
+      <p className="auth-subtitle">Start tracking attendance</p>
       <input
         type="text"
         placeholder="Username"
@@ -67,16 +65,24 @@ function RegisterForm({ handleRegister }) {
         required
       />
       {errorMessage && <p className="error">{errorMessage}</p>}
-      <button type="submit">Register</button>
+      <button type="submit" className="btn-primary">Create Account</button>
     </form>
   );
 }
 
 function AuthPage({ handleLogin, handleRegister }) {
   return (
-    <div id="auth-section">
-      <LoginForm handleLogin={handleLogin} />
-      <RegisterForm handleRegister={handleRegister} />
+    <div className="auth-page">
+      <div className="auth-hero">
+        <div className="auth-hero-icon">📋</div>
+        <h1 className="auth-hero-title">AttendanceIQ</h1>
+        <p className="auth-hero-sub">Track your classes. Own your attendance.</p>
+      </div>
+      <div className="auth-forms">
+        <LoginForm handleLogin={handleLogin} />
+        <div className="auth-divider" />
+        <RegisterForm handleRegister={handleRegister} />
+      </div>
     </div>
   );
 }
